@@ -1,6 +1,6 @@
 // Versão de navegador de server/db.js: SQLite em WebAssembly (sql.js), persistido no localStorage.
 // Expõe a mesma interface usada pelas rotas: db.prepare(sql).get/all/run e db.exec.
-import { SCHEMA } from './schema.js';
+import { SCHEMA, applyColumnAdditions } from './schema.js';
 
 const SQLJS = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/';
 export const STORAGE_KEY = 'kz_demo_db_v1';
@@ -62,6 +62,8 @@ export const db = {
     },
   }),
 };
+
+applyColumnAdditions(db);
 
 export function tx(fn) {
   raw.exec('BEGIN');

@@ -25,23 +25,26 @@ O botão **Restaurar dados de demonstração** volta tudo ao estado inicial.
 
 Requisitos: **Node.js 22.13 ou superior** (usa o SQLite nativo `node:sqlite`; não há dependências para instalar).
 
-```bash
-npm start
-```
+### Produção
 
-Acesse http://localhost:3000. Na primeira execução o banco `data/kzann.db` é criado com dados de demonstração e as
-credenciais são exibidas no terminal. Variáveis de ambiente:
+Na primeira execução o banco `data/kzann.db` é criado só com os planos padrão. **Nenhuma conta é criada sem
+credenciais explícitas**: defina o administrador Kzann Tech pelas variáveis de ambiente e inicie com `npm start`.
 
 | Variável | Uso |
 | --- | --- |
-| `PORT` | Porta HTTP (padrão 3000) |
+| `ADMIN_EMAIL` | E-mail do administrador Kzann Tech, criado no primeiro start se ainda não houver nenhum |
+| `ADMIN_PASSWORD` | Senha desse administrador (mínimo de 12 caracteres). Depois de criado, remova a variável |
 | `APP_SECRET` | Segredo para assinar os tokens de sessão (padrão: gerado em `data/.secret`) |
-| `ADMIN_PASSWORD` | Senha inicial do admin Kzann Tech criado no primeiro start |
+| `PORT` | Porta HTTP (padrão 3000) |
 | `DATA_DIR` | Pasta do banco de dados (padrão `data/`) |
+| `KZ_DEMO_DATA` | `1` cria os dados de demonstração (o mesmo que `--demo`). **Nunca use em produção** |
 
-Outros comandos:
+Se o banco tiver contas de demonstração (senhas públicas), o servidor mostra um alerta no start.
+
+### Desenvolvimento
 
 ```bash
+npm run dev:demo       # servidor com dados de demonstração; as senhas aparecem no terminal
 npm run reset          # apaga o banco local e recria os dados de demonstração
 npm run build:pages    # gera a demonstração estática em docs/
 npm run preview:pages  # serve docs/ em http://localhost:4000 para testar
@@ -83,6 +86,13 @@ public/
 ### Perfis de acesso
 
 `owner` (proprietário) · `manager` (gerente) · `cashier` (caixa) · `superadmin` (equipe Kzann Tech).
+
+### Descontos
+
+O caixa pode conceder até **10% do subtotal** sozinho. Acima disso, a venda só é concluída com o e-mail e a senha
+de um gerente ou do dono da mesma adega, e o sistema registra quem autorizou (`sales.discount_authorized_by`).
+Gerente e dono não têm limite e ficam registrados como autorizadores dos próprios descontos acima de 10%.
+A regra é aplicada no servidor (`server/services.js`, `authorizeDiscount`).
 
 ## Observações
 

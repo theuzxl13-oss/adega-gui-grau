@@ -41,7 +41,9 @@ export async function dispatch({ method, pathname, query = {}, body = {}, author
     const result = await match.route.handler(ctx);
     return { status: 200, data: result ?? { ok: true } };
   } catch (err) {
-    if (err instanceof HttpError) return { status: err.status, data: { error: err.message } };
+    if (err instanceof HttpError) {
+      return { status: err.status, data: err.code ? { error: err.message, code: err.code } : { error: err.message } };
+    }
     console.error(err);
     return { status: 500, data: { error: 'Erro interno. Tente novamente.' } };
   }

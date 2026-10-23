@@ -1,7 +1,7 @@
 // PDV (vendas), dashboard e relatórios.
 import { db, tx } from '../db.js';
 import { HttpError } from '../http.js';
-import { PAYMENT_METHODS } from '../services.js';
+import { PAYMENT_METHODS, authorizeDiscount } from '../services.js';
 import { str, int, localStamp, today, addDays, dateRange } from '../util.js';
 
 const MANAGE = { auth: 'tenant', roles: ['owner', 'manager'] };
@@ -9,7 +9,8 @@ const MANAGE = { auth: 'tenant', roles: ['owner', 'manager'] };
 function getSale(tenantId, id) {
   const sale = db
     .prepare(
-      `SELECT s.*, u.name AS user_name FROM sales s LEFT JOIN users u ON u.id = s.user_id
+      `SELECT s.*, u.name AS user_name, ua.name AS discount_authorized_by_name
+       FROM sales s LEFT JOIN users u ON u.id = s.user_id LEFT JOIN users ua ON ua.id = s.discount_authorized_by
        WHERE s.id = ? AND s.tenant_id = ?`
     )
     .get(id, tenantId);
@@ -97,6 +98,7 @@ export function register(r) {
         lines.push({ p, qty, total });
       }
       const discount = int(body.discount_cents, { min: 0, max: subtotal, def: 0 });
+      const authorizedBy = authorizeDiscount({ tenant, user, subtotal, discount, authorization: body.authorization });
       const total = subtotal - discount;
       let paid = total;
       let change = 0;
@@ -112,10 +114,13 @@ export function register(r) {
       const res = db
         .prepare(
           `INSERT INTO sales (tenant_id, number, user_id, customer_name, subtotal_cents, discount_cents, total_cents,
-             payment_method, amount_paid_cents, change_cents, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             payment_method, amount_paid_cents, change_cents, discount_authorized_by, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
-        .run(tenant.id, next, user.id, str(body.customer_name, 120), subtotal, discount, total, method, paid, change, now);
+        .run(
+          tenant.id, next, user.id, str(body.customer_name, 120), subtotal, discount, total, method, paid, change,
+          authorizedBy, now
+        );
       const id = Number(res.lastInsertRowid);
       for (const { p, qty, total: lineTotal } of lines) {
         db.prepare(

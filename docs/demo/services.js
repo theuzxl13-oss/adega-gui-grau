@@ -1,10 +1,55 @@
 import { db } from './db.js';
-import { hashPassword } from './auth.js';
+import { hashPassword, verifyPassword, checkLoginRate, registerLoginFailure, clearLoginFailures } from './auth.js';
 import { HttpError } from './http.js';
-import { localStamp, addDays, today } from './util.js';
+import { localStamp, addDays, today, str } from './util.js';
 
 export const TENANT_ROLES = ['owner', 'manager', 'cashier'];
 export const PAYMENT_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'outro'];
+export const DISCOUNT_APPROVER_ROLES = ['owner', 'manager'];
+/** Desconto máximo que um operador de caixa pode conceder sozinho (% do subtotal). */
+export const CASHIER_DISCOUNT_LIMIT_PCT = 10;
+
+const brl = (cents) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
+
+/**
+ * Valida o desconto conforme a função de quem vende.
+ * Caixa: até CASHIER_DISCOUNT_LIMIT_PCT% do subtotal; acima disso exige e-mail e senha de um gerente
+ * ou do dono da MESMA adega. Gerente/dono: sem limite, registrados como autorizadores do próprio desconto.
+ * @returns {number|null} id do usuário que autorizou o desconto acima do limite (null se não precisou).
+ */
+export function authorizeDiscount({ tenant, user, subtotal, discount, authorization }) {
+  const limit = Math.floor((subtotal * CASHIER_DISCOUNT_LIMIT_PCT) / 100);
+  if (discount <= limit) return null;
+  if (DISCOUNT_APPROVER_ROLES.includes(user.role)) return user.id;
+
+  const email = str(authorization?.email, 160).toLowerCase();
+  const password = typeof authorization?.password === 'string' ? authorization.password : '';
+  if (!email || !password) {
+    throw new HttpError(
+      403,
+      `Desconto acima de ${CASHIER_DISCOUNT_LIMIT_PCT}% (máximo ${brl(limit)} nesta venda). Peça a um gerente ou ao dono para autorizar.`,
+      'DISCOUNT_AUTH_REQUIRED'
+    );
+  }
+  const key = `discount|${tenant.id}|${email}`;
+  if (!checkLoginRate(key)) throw new HttpError(429, 'Muitas tentativas de autorização. Aguarde alguns minutos.');
+  const approver = db
+    .prepare(
+      `SELECT * FROM users WHERE email = ? AND tenant_id = ? AND active = 1
+       AND role IN (${DISCOUNT_APPROVER_ROLES.map(() => '?').join(', ')})`
+    )
+    .get(email, tenant.id, ...DISCOUNT_APPROVER_ROLES);
+  if (!approver || !verifyPassword(password, approver.password_hash)) {
+    registerLoginFailure(key);
+    throw new HttpError(
+      403,
+      'Autorização recusada: e-mail ou senha incorretos, ou o usuário não é gerente/dono desta adega.',
+      'DISCOUNT_AUTH_INVALID'
+    );
+  }
+  clearLoginFailures(key);
+  return approver.id;
+}
 
 export function getPlan(id) {
   const p = db.prepare('SELECT * FROM plans WHERE id = ?').get(id);

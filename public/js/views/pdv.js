@@ -2,7 +2,36 @@
 import { api, money, esc, icon, toast, openModal, parseMoney, PAYMENT_LABELS } from '../core.js';
 import { printReceipt } from '../docs.js';
 
+// Espelha CASHIER_DISCOUNT_LIMIT_PCT do servidor (que é quem decide de fato).
+const DISCOUNT_LIMIT_PCT = 10;
+
+/** Pede e-mail e senha de um gerente/dono. Resolve com { email, password } ou null se cancelado. */
+function askAuthorization(message) {
+  return new Promise((resolve) => {
+    let done = false;
+    const m = openModal({
+      title: 'Autorização de desconto',
+      body: `<p class="muted" style="margin-bottom:14px">${esc(message)}</p>
+        <form id="auth-f" class="stack" style="gap:12px" autocomplete="off">
+          <label class="field">E-mail do gerente ou dono<input class="input" name="email" type="email" required autocomplete="off"></label>
+          <label class="field">Senha<input class="input" name="password" type="password" required autocomplete="new-password"></label>
+        </form>`,
+      foot: `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" form="auth-f">Autorizar</button>`,
+      onClose: () => !done && resolve(null),
+    });
+    m.el.querySelector('#auth-f').addEventListener('submit', (e) => {
+      e.preventDefault();
+      done = true;
+      const f = e.target;
+      const cred = { email: f.email.value, password: f.password.value };
+      m.close();
+      resolve(cred);
+    });
+  });
+}
+
 export async function render(el, { state }) {
+  const isCashier = state.user.role === 'cashier';
   let [products, categories] = await Promise.all([api('/api/products'), api('/api/categories')]);
   const cart = new Map(); // product_id -> qty
   let category = 0;
@@ -27,6 +56,7 @@ export async function render(el, { state }) {
         <div class="cart-totals">
           <div class="line muted"><span>Subtotal</span><span class="num" id="pdv-subtotal">R$ 0,00</span></div>
           <div class="line" style="align-items:center"><span class="muted">Desconto (R$)</span><input class="input" id="pdv-discount" style="width:120px;text-align:right" inputmode="decimal" placeholder="0,00"></div>
+          ${isCashier ? `<div class="small muted" id="pdv-discount-hint">Até ${DISCOUNT_LIMIT_PCT}% sem autorização do gerente.</div>` : ''}
           <div class="line" style="align-items:baseline"><span style="font-weight:700">Total</span><span class="grand" id="pdv-total">R$ 0,00</span></div>
           <div class="pay-methods" id="pdv-methods">
             ${['pix', 'dinheiro', 'debito', 'credito'].map((m) => `<button data-method="${m}">${PAYMENT_LABELS[m]}</button>`).join('')}
@@ -122,7 +152,7 @@ export async function render(el, { state }) {
     renderCart();
   }
 
-  async function finish() {
+  async function finish(authorization = undefined) {
     if (!cart.size || busy) return;
     const t = totals();
     const body = {
@@ -130,6 +160,7 @@ export async function render(el, { state }) {
       payment_method: method,
       discount_cents: t.discount,
       customer_name: $('pdv-customer').value,
+      authorization,
     };
     if (method === 'dinheiro') {
       body.amount_paid_cents = $('pdv-paid').value ? parseMoney($('pdv-paid').value) : t.total;
@@ -155,6 +186,13 @@ export async function render(el, { state }) {
       m.el.querySelector('[data-print]').addEventListener('click', () => printReceipt(sale, state.tenant));
       m.el.querySelector('.btn-primary').focus();
     } catch (err) {
+      if (err.code === 'DISCOUNT_AUTH_REQUIRED' || err.code === 'DISCOUNT_AUTH_INVALID') {
+        busy = false;
+        renderCart();
+        const cred = await askAuthorization(err.message);
+        if (cred) return await finish(cred);
+        return search.focus();
+      }
       toast(err.message, 'error');
     } finally {
       busy = false;

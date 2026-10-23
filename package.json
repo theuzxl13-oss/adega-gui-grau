@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "dev:demo": "node --watch server/index.js --demo",
     "reset": "node server/reset.js",
     "build:pages": "node scripts/build-pages.js",
     "preview:pages": "node scripts/serve-static.js docs"

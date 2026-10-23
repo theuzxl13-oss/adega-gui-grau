@@ -56,7 +56,7 @@ export async function api(path, { method = 'GET', body } = {}) {
     session.clear();
     location.href = 'login.html?expirou=1';
   }
-  if (status >= 400) throw Object.assign(new Error(data.error || 'Erro inesperado.'), { status });
+  if (status >= 400) throw Object.assign(new Error(data.error || 'Erro inesperado.'), { status, code: data.code });
   return data;
 }
 

@@ -55,7 +55,7 @@ export async function render(el, { state }) {
           <tbody>${s.items.map((i) => `<tr><td>${esc(i.name)}</td><td class="num">${num(i.qty)}</td><td class="num">${money(i.unit_price_cents)}</td><td class="num">${money(i.total_cents)}</td></tr>`).join('')}</tbody>
           <tfoot>
             <tr><td colspan="3" class="right muted">Subtotal</td><td class="num">${money(s.subtotal_cents)}</td></tr>
-            ${s.discount_cents ? `<tr><td colspan="3" class="right muted">Desconto</td><td class="num">− ${money(s.discount_cents)}</td></tr>` : ''}
+            ${s.discount_cents ? `<tr><td colspan="3" class="right muted">Desconto${s.discount_authorized_by_name ? ` (autorizado por ${esc(s.discount_authorized_by_name)})` : ''}</td><td class="num">− ${money(s.discount_cents)}</td></tr>` : ''}
             <tr><td colspan="3" class="right"><b>Total</b></td><td class="num"><b>${money(s.total_cents)}</b></td></tr>
           </tfoot>
         </table></div>`,

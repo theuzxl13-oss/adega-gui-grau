@@ -1,13 +1,21 @@
-// Dados iniciais: planos, usuário administrador Kzann Tech e uma adega de demonstração.
+// Dados iniciais.
+// - seedPlans(): planos comerciais padrão (sempre, quando não há nenhum).
+// - ensureSuperadmin(): administrador Kzann Tech, criado SOMENTE a partir de ADMIN_EMAIL/ADMIN_PASSWORD.
+// - seedDemo(): adegas e usuários de demonstração, com senhas públicas. Apenas com --demo / KZ_DEMO_DATA=1,
+//   no `npm run reset` e na demonstração estática do GitHub Pages. Nunca em produção.
 import { db, tx } from './db.js';
-import { hashPassword } from './auth.js';
+import { hashPassword, verifyPassword } from './auth.js';
 import { createTenantWithOwner } from './services.js';
-import { localStamp, today, addDays } from './util.js';
+import { localStamp, today, addDays, isEmail } from './util.js';
 
+export const MIN_ADMIN_PASSWORD = 12;
+
+// Credenciais públicas, usadas apenas pelos dados de demonstração.
 export const DEMO = {
-  admin: { email: 'admin@kzann.tech', password: globalThis.process?.env?.ADMIN_PASSWORD || 'kzann-admin-2026' },
+  admin: { email: 'admin@kzann.tech', password: 'kzann-admin-2026' },
   owner: { email: 'dono@adegaexemplo.com.br', password: 'adega-demo-2026' },
   cashier: { email: 'caixa@adegaexemplo.com.br', password: 'caixa-demo-2026' },
+  trial: { email: 'contato@distribuidoramodelo.com.br', password: 'distribuidora-demo-2026' },
 };
 
 const PLANS = [
@@ -59,32 +67,74 @@ function rng(seed) {
   return () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
 }
 
-export function seedIfEmpty() {
+/** Cria os planos padrão se ainda não houver nenhum. */
+export function seedPlans() {
   if (db.prepare('SELECT COUNT(*) n FROM plans').get().n) return false;
   tx(() => {
-    const now = localStamp();
-    const planIds = PLANS.map((p) =>
-      Number(
-        db
-          .prepare(
-            `INSERT INTO plans (name, description, price_cents, max_users, max_products, features, highlighted, sort)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-          )
-          .run(p.name, p.description, p.price, p.users, p.products, JSON.stringify(p.features), p.highlighted, p.sort)
-          .lastInsertRowid
-      )
-    );
+    for (const p of PLANS) {
+      db.prepare(
+        `INSERT INTO plans (name, description, price_cents, max_users, max_products, features, highlighted, sort)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(p.name, p.description, p.price, p.users, p.products, JSON.stringify(p.features), p.highlighted, p.sort);
+    }
+  });
+  return true;
+}
 
-    db.prepare(
-      "INSERT INTO users (tenant_id, name, email, password_hash, role, created_at) VALUES (NULL, ?, ?, ?, 'superadmin', ?)"
-    ).run('Equipe Kzann Tech', DEMO.admin.email, hashPassword(DEMO.admin.password), now);
+const hasSuperadmin = () => !!db.prepare("SELECT id FROM users WHERE role = 'superadmin' LIMIT 1").get();
+
+/**
+ * Garante um administrador Kzann Tech a partir das variáveis de ambiente.
+ * Não cria nada sem credenciais explícitas e nunca altera um admin existente.
+ * @returns {'exists'|'created'|'missing'|'invalid'}
+ */
+export function ensureSuperadmin({ email, password }) {
+  if (hasSuperadmin()) return 'exists';
+  if (!email || !password) return 'missing';
+  email = String(email).trim().toLowerCase();
+  if (!isEmail(email) || String(password).length < MIN_ADMIN_PASSWORD || password === DEMO.admin.password) return 'invalid';
+  if (db.prepare('SELECT id FROM users WHERE email = ?').get(email)) return 'invalid';
+  db.prepare(
+    "INSERT INTO users (tenant_id, name, email, password_hash, role, created_at) VALUES (NULL, ?, ?, ?, 'superadmin', ?)"
+  ).run('Equipe Kzann Tech', email, hashPassword(password), localStamp());
+  return 'created';
+}
+
+/** Contas de demonstração (senhas públicas) presentes no banco — usado para alertar no start. */
+export function demoAccountsPresent() {
+  return Object.values(DEMO).filter((c) => {
+    const u = db.prepare('SELECT password_hash FROM users WHERE email = ? AND active = 1').get(c.email);
+    return u && verifyPassword(c.password, u.password_hash);
+  }).map((c) => c.email);
+}
+
+/** Demonstração estática (GitHub Pages): planos + dados de exemplo. */
+export function seedIfEmpty() {
+  const plans = seedPlans();
+  const demo = seedDemo();
+  return plans || demo;
+}
+
+/** Cria a adega de demonstração e suas contas, se ainda não existirem. */
+export function seedDemo() {
+  if (db.prepare('SELECT id FROM users WHERE email = ?').get(DEMO.owner.email)) return false;
+  tx(() => {
+    const now = localStamp();
+    const planIds = db.prepare('SELECT id FROM plans ORDER BY sort, id').all().map((p) => p.id);
+    if (!planIds.length) throw new Error('Crie os planos antes dos dados de demonstração.');
+
+    if (!hasSuperadmin()) {
+      db.prepare(
+        "INSERT INTO users (tenant_id, name, email, password_hash, role, created_at) VALUES (NULL, ?, ?, ?, 'superadmin', ?)"
+      ).run('Equipe Kzann Tech', DEMO.admin.email, hashPassword(DEMO.admin.password), now);
+    }
 
     const tenantId = createTenantWithOwner({
       tenantName: 'Adega Exemplo',
       ownerName: 'Proprietário Demo',
       email: DEMO.owner.email,
       password: DEMO.owner.password,
-      planId: planIds[1],
+      planId: planIds[1] ?? planIds[0],
       status: 'active',
     });
     db.prepare(
@@ -169,14 +219,16 @@ export function seedIfEmpty() {
     }
 
     // Uma adega em período de teste, para o painel administrativo ter variedade.
-    createTenantWithOwner({
-      tenantName: 'Distribuidora Modelo',
-      ownerName: 'Responsável Modelo',
-      email: 'contato@distribuidoramodelo.com.br',
-      password: 'distribuidora-demo-2026',
-      planId: planIds[0],
-      status: 'trial',
-    });
+    if (!db.prepare('SELECT id FROM users WHERE email = ?').get(DEMO.trial.email)) {
+      createTenantWithOwner({
+        tenantName: 'Distribuidora Modelo',
+        ownerName: 'Responsável Modelo',
+        email: DEMO.trial.email,
+        password: DEMO.trial.password,
+        planId: planIds[0],
+        status: 'trial',
+      });
+    }
   });
   return true;
 }

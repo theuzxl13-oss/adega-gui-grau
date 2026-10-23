@@ -6,7 +6,7 @@ import { PUBLIC_DIR } from './paths.js';
 import { HttpError, readJson, sendJson } from './http.js';
 import { dispatch } from './api.js';
 import { getBrand } from './brand.js';
-import { seedIfEmpty, DEMO } from './seed.js';
+import { seedPlans, seedDemo, ensureSuperadmin, demoAccountsPresent, DEMO, MIN_ADMIN_PASSWORD } from './seed.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -84,15 +84,36 @@ const server = http.createServer((req, res) => {
   serveStatic(req, res, url);
 });
 
-const seeded = seedIfEmpty();
+// Dados de demonstração (senhas públicas) só com pedido explícito.
+const DEMO_DATA = process.argv.includes('--demo') || process.env.KZ_DEMO_DATA === '1';
+
+seedPlans();
+const admin = ensureSuperadmin({ email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD });
+const demoSeeded = DEMO_DATA && seedDemo();
+const demoAccounts = demoAccountsPresent();
+
 server.listen(PORT, () => {
   const brand = getBrand();
   console.log(`\n  ${brand.productName} — ${brand.slogan}`);
   console.log(`  Servidor em http://localhost:${PORT}\n`);
-  if (seeded) {
+  if (admin === 'created') console.log(`  Administrador Kzann Tech criado: ${process.env.ADMIN_EMAIL.trim().toLowerCase()}\n`);
+  if (admin === 'missing' && !demoAccounts.length) {
+    console.warn('  AVISO: nenhum administrador Kzann Tech. Defina ADMIN_EMAIL e ADMIN_PASSWORD e reinicie.\n');
+  }
+  if (admin === 'invalid') {
+    console.warn(
+      `  AVISO: administrador NÃO criado. ADMIN_EMAIL precisa ser um e-mail livre e ADMIN_PASSWORD ter ${MIN_ADMIN_PASSWORD}+ caracteres (e não ser a senha de demonstração).\n`
+    );
+  }
+  if (demoSeeded) {
     console.log('  Dados de demonstração criados:');
     console.log(`    Admin Kzann Tech:  ${DEMO.admin.email} / ${DEMO.admin.password}`);
     console.log(`    Dono da adega:     ${DEMO.owner.email} / ${DEMO.owner.password}`);
     console.log(`    Operador de caixa: ${DEMO.cashier.email} / ${DEMO.cashier.password}\n`);
+  }
+  if (demoAccounts.length && !DEMO_DATA) {
+    console.warn('  ATENÇÃO: este banco contém contas de demonstração com senhas PÚBLICAS:');
+    for (const email of demoAccounts) console.warn(`    - ${email}`);
+    console.warn('  Não use este banco em produção: troque essas senhas ou desative as contas.\n');
   }
 });

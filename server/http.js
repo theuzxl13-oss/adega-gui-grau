@@ -1,9 +1,11 @@
 // Roteador HTTP mínimo, sem dependências externas.
 
 export class HttpError extends Error {
-  constructor(status, message) {
+  /** `code` é um identificador estável para o front-end reagir (ex.: pedir autorização). */
+  constructor(status, message, code = undefined) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 

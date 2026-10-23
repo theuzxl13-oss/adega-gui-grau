@@ -116,3 +116,18 @@ CREATE TABLE IF NOT EXISTS stock_movements (
 );
 CREATE INDEX IF NOT EXISTS idx_movements_product ON stock_movements(product_id, created_at);
 `;
+
+// Colunas adicionadas depois da versão inicial. Só acrescentam colunas opcionais (NULL),
+// sem tocar nos dados existentes. Para reverter: ALTER TABLE <tabela> DROP COLUMN <coluna>.
+const COLUMN_ADDITIONS = [
+  // BUS-01: quem autorizou um desconto acima do limite do caixa.
+  ['sales', 'discount_authorized_by', 'INTEGER REFERENCES users(id)'],
+];
+
+/** Aplica as colunas que faltarem. `db` segue a interface prepare().all() / exec(). */
+export function applyColumnAdditions(db) {
+  for (const [table, column, type] of COLUMN_ADDITIONS) {
+    const exists = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+    if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
+}
