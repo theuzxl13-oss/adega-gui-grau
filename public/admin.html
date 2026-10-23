@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel Kzann Tech</title>
+  <link rel="icon" href="assets/kzann-mark.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/kzann.css">
+</head>
+<body>
+  <div class="shell" id="shell">
+    <aside class="sidebar">
+      <div class="tenant">
+        <img data-brand="logo" src="assets/kzann-mark.svg" alt="" style="width:42px;height:42px;border-radius:10px">
+        <div><div class="tenant-name" data-brand="vendorName">Kzann Tech</div><div class="tenant-sub">Painel da plataforma</div></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="powered">
+        <div><div class="p-name" data-brand="productName">Kzann Tech Adegas</div><div class="p-slogan" data-brand="slogan">Tecnologia que simplifica o seu negócio.</div></div>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <button class="btn btn-ghost icon-btn menu-toggle" id="menu-toggle" aria-label="Menu"></button>
+        <h1 id="page-title">Carregando…</h1>
+        <span class="spacer"></span>
+        <div id="topbar-actions" class="row"></div>
+        <div class="user-chip" id="user-chip"></div>
+      </header>
+      <div id="sub-banner"></div>
+      <main class="content" id="view"></main>
+    </div>
+  </div>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

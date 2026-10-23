@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar — Kzann Tech Adegas</title>
+  <link rel="icon" href="assets/kzann-mark.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/kzann.css">
+  <style>
+    body { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); }
+    .side { position: relative; overflow: hidden; color: #fff; padding: 48px; display: flex; flex-direction: column;
+      background: radial-gradient(700px 500px at 100% 0%, color-mix(in srgb, var(--kz-accent) 45%, transparent), transparent 60%),
+                  linear-gradient(160deg, var(--kz-dark) 30%, color-mix(in srgb, var(--kz-primary) 75%, var(--kz-dark))); }
+    .side .brand { display: flex; gap: 12px; align-items: center; font-size: 18px; color: #fff; }
+    .side .brand img { width: 40px; height: 40px; border-radius: 10px; }
+    .side h2 { font-size: clamp(28px, 3vw, 40px); letter-spacing: -0.03em; margin-top: auto; max-width: 460px; }
+    .side p { color: #CFCDE6; margin-top: 14px; max-width: 420px; font-size: 16px; }
+    .side .foot { margin-top: 40px; font-size: 12px; color: #8E8AB0; }
+    .form-side { display: grid; place-items: center; padding: 40px 24px; }
+    .box { width: min(400px, 100%); }
+    .box h1 { font-size: 26px; letter-spacing: -0.02em; }
+    .box .sub { color: var(--muted); margin: 6px 0 26px; }
+    .box form { display: flex; flex-direction: column; gap: 14px; }
+    .switch { margin-top: 22px; text-align: center; color: var(--muted); }
+    .demo { margin-top: 26px; padding: 14px; border: 1px dashed var(--border); border-radius: 12px; }
+    .demo b { font-size: 13px; }
+    .demo .row { margin-top: 10px; }
+    @media (max-width: 860px) { body { grid-template-columns: 1fr; } .side { display: none; } }
+  </style>
+</head>
+<body>
+  <aside class="side">
+    <a class="brand" href="index.html"><img data-brand="logo" src="assets/kzann-mark.svg" alt=""><b data-brand="productName">Kzann Tech Adegas</b></a>
+    <h2 data-brand="slogan">Tecnologia que simplifica o seu negócio.</h2>
+    <p>PDV, estoque e relatórios para adegas, distribuidoras de bebidas e estabelecimentos similares.</p>
+    <div class="foot">© <span id="year"></span> <span data-brand="vendorName">Kzann Tech</span></div>
+  </aside>
+  <main class="form-side">
+    <div class="box">
+      <section id="login">
+        <h1>Entrar</h1>
+        <p class="sub">Acesse o painel da sua adega.</p>
+        <div id="notice"></div>
+        <form id="login-form">
+          <label class="field">E-mail<input class="input input-lg" name="email" type="email" autocomplete="username" required></label>
+          <label class="field">Senha<input class="input input-lg" name="password" type="password" autocomplete="current-password" required></label>
+          <button class="btn btn-primary btn-lg">Entrar</button>
+        </form>
+        <p class="switch">Ainda não tem conta? <a href="?modo=cadastro" data-mode="signup">Teste grátis</a></p>
+        <div id="demo" class="demo hidden"></div>
+      </section>
+      <section id="signup" class="hidden">
+        <h1>Criar conta grátis</h1>
+        <p class="sub"><span id="trial">14</span> dias para testar tudo, sem cartão de crédito.</p>
+        <form id="signup-form">
+          <label class="field">Nome da adega<input class="input" name="tenant_name" required maxlength="120" placeholder="Ex.: Adega do Bairro"></label>
+          <label class="field">Seu nome<input class="input" name="name" required maxlength="120" autocomplete="name"></label>
+          <label class="field">E-mail<input class="input" name="email" type="email" required autocomplete="email"></label>
+          <label class="field">Senha<span class="hint">Mínimo de 8 caracteres.</span><input class="input" name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+          <label class="field">Plano<select class="input" name="plan_id" id="plan-select"></select></label>
+          <button class="btn btn-primary btn-lg">Criar minha conta</button>
+        </form>
+        <p class="switch">Já tem conta? <a href="login.html" data-mode="login">Entrar</a></p>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>

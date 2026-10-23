@@ -1,0 +1,19 @@
+{
+  "name": "kzann-tech-adegas",
+  "version": "1.0.0",
+  "description": "Kzann Tech Adegas — SaaS multiempresa para adegas e distribuidoras de bebidas. Tecnologia que simplifica o seu negócio.",
+  "private": true,
+  "type": "module",
+  "author": "Kzann Tech",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "reset": "node server/reset.js",
+    "build:pages": "node scripts/build-pages.js",
+    "preview:pages": "node scripts/serve-static.js docs"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
